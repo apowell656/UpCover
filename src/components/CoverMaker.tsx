@@ -6,6 +6,7 @@ import {
   Search,
   X,
   Settings,
+  Shuffle,
 } from "lucide-react";
 import { Icon } from "@iconify/react";
 import { toPng } from "html-to-image";
@@ -45,6 +46,13 @@ const PRESET_COLORS = [
   "#1f2937",
   "#000000",
   "#ffffff",
+];
+
+const GRADIENT_DIRECTIONS = [
+  { label: "↓ To Bottom", value: "to bottom" },
+  { label: "→ To Right", value: "to right" },
+  { label: "↘ Diagonal", value: "to bottom right" },
+  { label: "↗ Diagonal", value: "to bottom left" },
 ];
 
 const POPULAR_ICONS = [
@@ -93,9 +101,25 @@ const POPULAR_ICONS = [
   "lucide:flame",
 ];
 
+function randomColor(): string {
+  const letters = "0123456789ABCDEF";
+  let color = "#";
+  for (let i = 0; i < 6; i++) {
+    color += letters[Math.floor(Math.random() * 16)];
+  }
+  return color;
+}
+
 export default function CoverMaker() {
   const [bgColor, setBgColor] = useState("#1f2937");
   const [isTransparentBg, setIsTransparentBg] = useState(false);
+
+  // Gradient state
+  const [useGradient, setUseGradient] = useState(false);
+  const [gradientColor1, setGradientColor1] = useState("#6366f1");
+  const [gradientColor2, setGradientColor2] = useState("#ec4899");
+  const [gradientDirection, setGradientDirection] = useState("to bottom right");
+
   const [showIcon, setShowIcon] = useState(true);
   const [iconName, setIconName] = useState("lucide:book");
   const [iconColor, setIconColor] = useState("#ffffff");
@@ -151,10 +175,21 @@ export default function CoverMaker() {
       } finally {
         setIsSearchingIcon(false);
       }
-    }, 500); // 500ms debounce
+    }, 500);
 
     return () => clearTimeout(timer);
   }, [iconSearch]);
+
+  // Compute the active background style (used for both preview and export)
+  const getBgStyle = (): React.CSSProperties => {
+    if (bgImage || isTransparentBg) return { backgroundColor: "transparent" };
+    if (useGradient) {
+      return {
+        background: `linear-gradient(${gradientDirection}, ${gradientColor1}, ${gradientColor2})`,
+      };
+    }
+    return { backgroundColor: bgColor };
+  };
 
   const handleDownload = async () => {
     if (!coverRef.current) return;
@@ -198,19 +233,17 @@ export default function CoverMaker() {
           },
         );
         if (!res.ok)
-          throw new Error("Unsplash API request failed. Key might be invalid.");
+          throw new Error(`Unsplash API error: ${res.status} ${res.statusText}`);
         const data = await res.json();
-        if (data.results) {
-          setPhotos(
-            data.results.map((img: any) => ({
-              id: img.id,
-              thumb: img.urls.small,
-              full: img.urls.regular,
-              alt: img.alt_description,
-            })),
-          );
-        }
-      } else if (photoSource === "pexels") {
+        setPhotos(
+          data.results.map((p: any) => ({
+            id: p.id,
+            thumb: p.urls.small,
+            full: p.urls.regular,
+            alt: p.alt_description,
+          })),
+        );
+      } else {
         const apiKey = pexelsKey || import.meta.env.VITE_PEXELS_API_KEY;
         if (!apiKey) {
           setIsSettingsOpen(true);
@@ -224,18 +257,16 @@ export default function CoverMaker() {
           },
         );
         if (!res.ok)
-          throw new Error("Pexels API request failed. Key might be invalid.");
+          throw new Error(`Pexels API error: ${res.status} ${res.statusText}`);
         const data = await res.json();
-        if (data.photos) {
-          setPhotos(
-            data.photos.map((img: any) => ({
-              id: img.id,
-              thumb: img.src.medium,
-              full: img.src.large,
-              alt: img.alt,
-            })),
-          );
-        }
+        setPhotos(
+          data.photos.map((p: any) => ({
+            id: p.id,
+            thumb: p.src.medium,
+            full: p.src.large,
+            alt: p.alt,
+          })),
+        );
       }
     } catch (err: any) {
       console.error(err);
@@ -266,7 +297,7 @@ export default function CoverMaker() {
   return (
     <div className="flex flex-col-reverse lg:flex-row gap-8 max-w-5xl mx-auto w-full">
       {/* Controls Panel */}
-      <div className="flex-1 space-y-6 bg-card p-6 rounded-2xl border shadow-sm">
+      <div className="w-full lg:w-[440px] flex-shrink-0">
         <Tabs defaultValue="style" className="w-full">
           <TabsList className="grid w-full grid-cols-2 mb-6">
             <TabsTrigger value="style" className="flex gap-2 items-center">
@@ -285,59 +316,185 @@ export default function CoverMaker() {
             <div className="space-y-3">
               <div className="flex justify-between items-center">
                 <Label>Background Color</Label>
-                <div className="flex items-center gap-2">
-                  <Label
-                    htmlFor="transparent-bg"
-                    className="text-xs text-muted-foreground font-normal"
-                  >
-                    Transparent
-                  </Label>
-                  <Switch
-                    id="transparent-bg"
-                    checked={isTransparentBg}
-                    onCheckedChange={(checked) => {
-                      setIsTransparentBg(checked);
-                      if (checked) setBgImage(null);
-                    }}
-                  />
+                <div className="flex items-center gap-3">
+                  {/* Gradient toggle */}
+                  <div className="flex items-center gap-1.5">
+                    <Label
+                      htmlFor="use-gradient"
+                      className="text-xs text-muted-foreground font-normal"
+                    >
+                      Gradient
+                    </Label>
+                    <Switch
+                      id="use-gradient"
+                      checked={useGradient}
+                      onCheckedChange={(checked) => {
+                        setUseGradient(checked);
+                        if (checked) {
+                          setIsTransparentBg(false);
+                          setBgImage(null);
+                        }
+                      }}
+                    />
+                  </div>
+                  {/* Transparent toggle */}
+                  <div className="flex items-center gap-1.5">
+                    <Label
+                      htmlFor="transparent-bg"
+                      className="text-xs text-muted-foreground font-normal"
+                    >
+                      Transparent
+                    </Label>
+                    <Switch
+                      id="transparent-bg"
+                      checked={isTransparentBg}
+                      onCheckedChange={(checked) => {
+                        setIsTransparentBg(checked);
+                        if (checked) {
+                          setBgImage(null);
+                          setUseGradient(false);
+                        }
+                      }}
+                    />
+                  </div>
                 </div>
               </div>
-              <div className={`flex flex-wrap gap-2 transition-opacity ${isTransparentBg ? 'opacity-50 pointer-events-none' : ''}`}>
-                {PRESET_COLORS.map((color) => (
-                  <button
-                    key={color}
-                    className={`w-8 h-8 rounded-full border-2 transition-all hover:scale-110 ${bgColor === color ? "border-primary scale-110 shadow-md" : "border-transparent shadow-sm"}`}
-                    style={{ backgroundColor: color }}
-                    onClick={() => {
-                      setBgColor(color);
-                      setBgImage(null);
-                    }}
-                    title={color}
-                  />
-                ))}
-              </div>
-              <div className={`flex items-center gap-3 pt-1 transition-opacity ${isTransparentBg ? 'opacity-50 pointer-events-none' : ''}`}>
-                <Label className="text-muted-foreground text-xs font-normal w-12">
-                  Custom:
-                </Label>
-                <div
-                  className="relative w-8 h-8 rounded-md overflow-hidden border shadow-sm cursor-pointer"
-                  title="Custom Background Color"
-                >
-                  <input
-                    type="color"
-                    value={bgColor}
-                    onChange={(e) => {
-                      setBgColor(e.target.value);
-                      setBgImage(null);
-                    }}
-                    className="absolute inset-0 w-12 h-12 -top-2 -left-2 cursor-pointer"
-                  />
+
+              {/* Solid color picker */}
+              {!useGradient && !isTransparentBg && (
+                <div className="space-y-2">
+                  <div className="flex flex-wrap gap-2">
+                    {PRESET_COLORS.map((color) => (
+                      <button
+                        key={color}
+                        className={`w-8 h-8 rounded-full border-2 transition-all hover:scale-110 ${bgColor === color ? "border-primary scale-110 shadow-md" : "border-transparent shadow-sm"}`}
+                        style={{ backgroundColor: color }}
+                        onClick={() => {
+                          setBgColor(color);
+                          setBgImage(null);
+                        }}
+                        title={color}
+                      />
+                    ))}
+                  </div>
+                  <div className="flex items-center gap-3 pt-1">
+                    <Label className="text-muted-foreground text-xs font-normal w-12">
+                      Custom:
+                    </Label>
+                    <div
+                      className="relative w-8 h-8 rounded-md overflow-hidden border shadow-sm cursor-pointer"
+                      title="Custom Background Color"
+                    >
+                      <input
+                        type="color"
+                        value={bgColor}
+                        onChange={(e) => {
+                          setBgColor(e.target.value);
+                          setBgImage(null);
+                        }}
+                        className="absolute inset-0 w-12 h-12 -top-2 -left-2 cursor-pointer"
+                      />
+                    </div>
+                    <span className="text-sm font-mono uppercase text-muted-foreground bg-muted/50 px-2 py-1 rounded-md">
+                      {bgColor}
+                    </span>
+                    <button
+                      onClick={() => {
+                        setBgColor(randomColor());
+                        setBgImage(null);
+                      }}
+                      className="ml-auto flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground transition-colors px-2 py-1 rounded-md hover:bg-muted"
+                      title="Random Color"
+                    >
+                      <Shuffle className="w-3 h-3" /> Random
+                    </button>
+                  </div>
                 </div>
-                <span className="text-sm font-mono uppercase text-muted-foreground bg-muted/50 px-2 py-1 rounded-md">
-                  {bgColor}
-                </span>
-              </div>
+              )}
+
+              {/* Gradient picker */}
+              {useGradient && (
+                <div className="space-y-3 p-3 rounded-xl border bg-muted/20">
+                  <div className="grid grid-cols-2 gap-3">
+                    {/* Color 1 */}
+                    <div className="space-y-1.5">
+                      <Label className="text-xs text-muted-foreground">Color 1</Label>
+                      <div className="flex items-center gap-2">
+                        <div className="relative w-8 h-8 rounded-md overflow-hidden border shadow-sm cursor-pointer flex-shrink-0">
+                          <input
+                            type="color"
+                            value={gradientColor1}
+                            onChange={(e) => setGradientColor1(e.target.value)}
+                            className="absolute inset-0 w-12 h-12 -top-2 -left-2 cursor-pointer"
+                          />
+                        </div>
+                        <span className="text-xs font-mono uppercase text-muted-foreground bg-muted/50 px-2 py-1 rounded-md">
+                          {gradientColor1}
+                        </span>
+                        <button
+                          onClick={() => setGradientColor1(randomColor())}
+                          title="Random"
+                          className="text-muted-foreground hover:text-foreground transition-colors"
+                        >
+                          <Shuffle className="w-3 h-3" />
+                        </button>
+                      </div>
+                    </div>
+                    {/* Color 2 */}
+                    <div className="space-y-1.5">
+                      <Label className="text-xs text-muted-foreground">Color 2</Label>
+                      <div className="flex items-center gap-2">
+                        <div className="relative w-8 h-8 rounded-md overflow-hidden border shadow-sm cursor-pointer flex-shrink-0">
+                          <input
+                            type="color"
+                            value={gradientColor2}
+                            onChange={(e) => setGradientColor2(e.target.value)}
+                            className="absolute inset-0 w-12 h-12 -top-2 -left-2 cursor-pointer"
+                          />
+                        </div>
+                        <span className="text-xs font-mono uppercase text-muted-foreground bg-muted/50 px-2 py-1 rounded-md">
+                          {gradientColor2}
+                        </span>
+                        <button
+                          onClick={() => setGradientColor2(randomColor())}
+                          title="Random"
+                          className="text-muted-foreground hover:text-foreground transition-colors"
+                        >
+                          <Shuffle className="w-3 h-3" />
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Direction & Random both */}
+                  <div className="flex items-center gap-2">
+                    <Select value={gradientDirection} onValueChange={setGradientDirection}>
+                      <SelectTrigger className="flex-1 h-8 text-xs">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {GRADIENT_DIRECTIONS.map((d) => (
+                          <SelectItem key={d.value} value={d.value} className="text-xs">
+                            {d.label}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                    <button
+                      onClick={() => {
+                        setGradientColor1(randomColor());
+                        setGradientColor2(randomColor());
+                        const dirs = GRADIENT_DIRECTIONS.map((d) => d.value);
+                        setGradientDirection(dirs[Math.floor(Math.random() * dirs.length)]);
+                      }}
+                      className="flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground transition-colors px-2 py-1.5 rounded-md hover:bg-muted border"
+                      title="Random Gradient"
+                    >
+                      <Shuffle className="w-3 h-3" /> Random
+                    </button>
+                  </div>
+                </div>
+              )}
             </div>
 
             {/* Icon Color & Size */}
@@ -356,7 +513,7 @@ export default function CoverMaker() {
                   ))}
                 </div>
                 <div className="flex items-center gap-3 pt-1">
-                  <Label className="text-muted-foreground text-sm font-normal">
+                  <Label className="text-muted-foreground text-xs font-normal w-12">
                     Custom:
                   </Label>
                   <div
@@ -373,13 +530,20 @@ export default function CoverMaker() {
                   <span className="text-sm font-mono uppercase text-muted-foreground bg-muted/50 px-2 py-1 rounded-md">
                     {iconColor}
                   </span>
+                  <button
+                    onClick={() => setIconColor(randomColor())}
+                    className="ml-auto flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground transition-colors px-2 py-1 rounded-md hover:bg-muted"
+                    title="Random Color"
+                  >
+                    <Shuffle className="w-3 h-3" /> Random
+                  </button>
                 </div>
               </div>
 
               <div className="space-y-3 pt-2">
                 <div className="flex justify-between">
                   <Label>Icon Size</Label>
-                  <span className="text-xs text-muted-foreground">
+                  <span className="text-xs text-muted-foreground font-mono">
                     {iconSize[0]}px
                   </span>
                 </div>
@@ -445,19 +609,16 @@ export default function CoverMaker() {
             </div>
           </TabsContent>
 
-          <TabsContent
-            value="image"
-            className="space-y-6 animate-in fade-in-50"
-          >
-            <div className="bg-blue-500/10 text-blue-500 p-3 rounded-lg text-sm mb-4">
-              Search requires an API key. Click the settings gear to add your
+          <TabsContent value="image" className="space-y-4 animate-in fade-in-50">
+            <div className="text-sm text-amber-500 dark:text-amber-400 bg-amber-500/10 border border-amber-500/20 rounded-lg px-3 py-2">
+              Photo search requires an API key. Click the settings gear to add your
               Unsplash or Pexels key.
             </div>
 
             <div className="flex gap-2 w-full">
               <Select value={photoSource} onValueChange={setPhotoSource}>
                 <SelectTrigger className="w-[120px]">
-                  <SelectValue placeholder="Source" />
+                  <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="unsplash">Unsplash</SelectItem>
@@ -467,35 +628,33 @@ export default function CoverMaker() {
 
               <form onSubmit={searchPhotos} className="flex flex-1 gap-2">
                 <Input
-                  placeholder={`Search ${photoSource}...`}
-                  value={searchQuery}
-                  onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
-                    setSearchQuery(e.target.value)
+                  placeholder={
+                    photoSource === "unsplash"
+                      ? "Search Unsplash..."
+                      : "Search Pexels..."
                   }
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  className="flex-1"
                 />
-                <Button
-                  type="submit"
-                  disabled={isSearching}
-                  size="icon"
-                  className="shrink-0"
-                >
+                <Button type="submit" size="icon" disabled={isSearching}>
                   <Search className="w-4 h-4" />
                 </Button>
               </form>
+
               <Button
-                variant="outline"
+                variant="ghost"
                 size="icon"
                 onClick={() => setIsSettingsOpen(true)}
-                title="API Settings"
-                className="shrink-0"
+                title="API Key Settings"
               >
                 <Settings className="w-4 h-4" />
               </Button>
             </div>
 
             {bgImage && (
-              <div className="flex items-center justify-between p-3 bg-muted/30 rounded-xl border">
-                <span className="text-sm">Custom photo applied</span>
+              <div className="flex items-center justify-between px-3 py-2 bg-muted/50 rounded-lg text-sm">
+                <span className="text-muted-foreground">Custom photo applied</span>
                 <Button
                   variant="ghost"
                   size="sm"
@@ -506,8 +665,14 @@ export default function CoverMaker() {
               </div>
             )}
 
-            {photos.length > 0 && (
-              <div className="grid grid-cols-3 gap-2 max-h-[350px] overflow-y-auto p-1">
+            {isSearching && (
+              <div className="text-center py-8 text-sm text-muted-foreground animate-pulse">
+                Searching...
+              </div>
+            )}
+
+            {!isSearching && photos.length > 0 && (
+              <div className="grid grid-cols-3 gap-2 max-h-[300px] overflow-y-auto custom-scrollbar p-1">
                 {photos.map((img: any) => (
                   <button
                     key={img.id}
@@ -517,15 +682,10 @@ export default function CoverMaker() {
                   >
                     <img
                       src={img.thumb}
-                      alt={img.alt || "Photo"}
-                      className="w-full h-full object-cover"
-                      crossOrigin="anonymous"
+                      alt={img.alt}
+                      className="absolute inset-0 w-full h-full object-cover"
                     />
-                    <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
-                      <span className="text-xs text-white font-medium">
-                        Use
-                      </span>
-                    </div>
+                    <div className="absolute inset-0 bg-black/0 group-hover:bg-black/20 transition-all" />
                   </button>
                 ))}
               </div>
@@ -551,11 +711,11 @@ export default function CoverMaker() {
 
         {/* The Cover Canvas */}
         <div
-          className={`relative rounded-sm overflow-hidden shadow-2xl ring-1 ring-black/10 transition-all duration-300 flex items-center justify-center ${isTransparentBg && !bgImage ? 'bg-[url("data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABAAAAAQCAYAAAAf8/9hAAAAMUlEQVQ4T2NkYGAQYcAP3uCTZhw1gGGYhAGBZIA/QNzMgN4wDDSQAAH/IfJ82DQBAACvEQoB0R2gJQAAAABJRU5ErkJggg==")]' : ''}`}
+          className={`relative rounded-sm overflow-hidden shadow-2xl ring-1 ring-black/10 transition-all duration-300 flex items-center justify-center ${isTransparentBg && !bgImage ? 'bg-[url("data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABAAAAAQCAYAAAAf8/9hAAAAMUlEQVQ4T2NkYGAQYcAP3uCTZhw1gGGYhAGBZIA/QNzMgN4wDDSQAAH/IfJ82DQBAACvEQoB0R2gJQAAAABJRU5ErkJggg==")]' : ""}`}
           style={{
             width: 110,
             height: 135,
-            backgroundColor: bgImage || isTransparentBg ? "transparent" : bgColor,
+            ...getBgStyle(),
           }}
         >
           {/* We wrap the content in a div for html-to-image to reliably capture it */}
@@ -565,7 +725,7 @@ export default function CoverMaker() {
             style={{
               width: 110,
               height: 135,
-              backgroundColor: bgImage || isTransparentBg ? "transparent" : bgColor,
+              ...getBgStyle(),
             }}
           >
             {bgImage && (
@@ -579,10 +739,6 @@ export default function CoverMaker() {
 
             {showIcon && (
               <div className="relative z-10 drop-shadow-md transition-all duration-300">
-                {/* Note: if color is set on Icon, it might override native svg colors depending on the icon's implementation. 
-                    Most single-color icons will adopt it, but multi-color logos might get overridden if we enforce it. 
-                    We apply color conditionally. For logos (logos:*), we usually want their native colors unless a user really wants to tint it.
-                    Since we offer an Icon Color picker, we apply it. */}
                 <Icon
                   icon={iconName}
                   width={iconSize[0]}
@@ -625,55 +781,49 @@ export default function CoverMaker() {
               safely in your browser.
             </DialogDescription>
           </DialogHeader>
-          <div className="space-y-4 py-4">
-            <div className="space-y-2">
-              <Label>Unsplash Access Key</Label>
+          <div className="space-y-4 py-2">
+            <div className="space-y-1.5">
+              <Label htmlFor="unsplash-key">Unsplash Access Key</Label>
               <Input
-                type="password"
-                placeholder="Enter Unsplash Access Key"
+                id="unsplash-key"
+                placeholder="Your Unsplash Access Key"
                 value={unsplashKey}
-                onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
-                  setUnsplashKey(e.target.value)
-                }
+                onChange={(e) => setUnsplashKey(e.target.value)}
               />
               <p className="text-xs text-muted-foreground">
+                Get a free key at{" "}
                 <a
                   href="https://unsplash.com/developers"
                   target="_blank"
-                  rel="noreferrer"
-                  className="text-primary hover:underline"
+                  rel="noopener noreferrer"
+                  className="underline hover:text-foreground"
                 >
-                  Get Unsplash Key
+                  unsplash.com/developers
                 </a>
               </p>
             </div>
-
-            <div className="space-y-2 pt-2 border-t">
-              <Label>Pexels API Key</Label>
+            <div className="space-y-1.5">
+              <Label htmlFor="pexels-key">Pexels API Key</Label>
               <Input
-                type="password"
-                placeholder="Enter Pexels API Key"
+                id="pexels-key"
+                placeholder="Your Pexels API Key"
                 value={pexelsKey}
-                onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
-                  setPexelsKey(e.target.value)
-                }
+                onChange={(e) => setPexelsKey(e.target.value)}
               />
               <p className="text-xs text-muted-foreground">
+                Get a free key at{" "}
                 <a
                   href="https://www.pexels.com/api/"
                   target="_blank"
-                  rel="noreferrer"
-                  className="text-primary hover:underline"
+                  rel="noopener noreferrer"
+                  className="underline hover:text-foreground"
                 >
-                  Get Pexels Key
+                  pexels.com/api
                 </a>
               </p>
             </div>
           </div>
           <DialogFooter>
-            <Button variant="outline" onClick={() => setIsSettingsOpen(false)}>
-              Cancel
-            </Button>
             <Button
               onClick={() => {
                 localStorage.setItem("unsplash_api_key", unsplashKey);
