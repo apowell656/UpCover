@@ -45,7 +45,6 @@ const PRESET_COLORS = [
   "#f97316",
   "#1f2937",
   "#000000",
-  "#ffffff",
 ];
 
 const GRADIENT_DIRECTIONS = [
@@ -206,7 +205,7 @@ export default function CoverMaker() {
     } catch (err) {
       console.error("Failed to generate cover image", err);
       alert(
-        "Failed to generate image. There might be an issue with external resources."
+        "Failed to generate image. There might be an issue with external resources.",
       );
     } finally {
       setIsDownloading(false);
@@ -233,7 +232,9 @@ export default function CoverMaker() {
           },
         );
         if (!res.ok)
-          throw new Error(`Unsplash API error: ${res.status} ${res.statusText}`);
+          throw new Error(
+            `Unsplash API error: ${res.status} ${res.statusText}`,
+          );
         const data = await res.json();
         setPhotos(
           data.results.map((p: any) => ({
@@ -363,7 +364,7 @@ export default function CoverMaker() {
               {/* Solid color picker */}
               {!useGradient && !isTransparentBg && (
                 <div className="space-y-2">
-                  <div className="flex flex-wrap gap-2">
+                  <div className="flex flex-wrap gap-2 justify-between">
                     {PRESET_COLORS.map((color) => (
                       <button
                         key={color}
@@ -418,7 +419,9 @@ export default function CoverMaker() {
                   <div className="grid grid-cols-2 gap-3">
                     {/* Color 1 */}
                     <div className="space-y-1.5">
-                      <Label className="text-xs text-muted-foreground">Color 1</Label>
+                      <Label className="text-xs text-muted-foreground">
+                        Color 1
+                      </Label>
                       <div className="flex items-center gap-2">
                         <div className="relative w-8 h-8 rounded-md overflow-hidden border shadow-sm cursor-pointer flex-shrink-0">
                           <input
@@ -442,7 +445,9 @@ export default function CoverMaker() {
                     </div>
                     {/* Color 2 */}
                     <div className="space-y-1.5">
-                      <Label className="text-xs text-muted-foreground">Color 2</Label>
+                      <Label className="text-xs text-muted-foreground">
+                        Color 2
+                      </Label>
                       <div className="flex items-center gap-2">
                         <div className="relative w-8 h-8 rounded-md overflow-hidden border shadow-sm cursor-pointer flex-shrink-0">
                           <input
@@ -468,13 +473,20 @@ export default function CoverMaker() {
 
                   {/* Direction & Random both */}
                   <div className="flex items-center gap-2">
-                    <Select value={gradientDirection} onValueChange={setGradientDirection}>
+                    <Select
+                      value={gradientDirection}
+                      onValueChange={setGradientDirection}
+                    >
                       <SelectTrigger className="flex-1 h-8 text-xs">
                         <SelectValue />
                       </SelectTrigger>
                       <SelectContent>
                         {GRADIENT_DIRECTIONS.map((d) => (
-                          <SelectItem key={d.value} value={d.value} className="text-xs">
+                          <SelectItem
+                            key={d.value}
+                            value={d.value}
+                            className="text-xs"
+                          >
                             {d.label}
                           </SelectItem>
                         ))}
@@ -485,7 +497,9 @@ export default function CoverMaker() {
                         setGradientColor1(randomColor());
                         setGradientColor2(randomColor());
                         const dirs = GRADIENT_DIRECTIONS.map((d) => d.value);
-                        setGradientDirection(dirs[Math.floor(Math.random() * dirs.length)]);
+                        setGradientDirection(
+                          dirs[Math.floor(Math.random() * dirs.length)],
+                        );
                       }}
                       className="flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground transition-colors px-2 py-1.5 rounded-md hover:bg-muted border"
                       title="Random Gradient"
@@ -501,7 +515,7 @@ export default function CoverMaker() {
             <div className="space-y-6 pt-2">
               <div className="space-y-3">
                 <Label>Icon Color (Overrides default brand colors)</Label>
-                <div className="flex flex-wrap gap-2">
+                <div className="flex flex-wrap gap-2 justify-between">
                   {PRESET_COLORS.map((color) => (
                     <button
                       key={color}
@@ -609,10 +623,13 @@ export default function CoverMaker() {
             </div>
           </TabsContent>
 
-          <TabsContent value="image" className="space-y-4 animate-in fade-in-50">
+          <TabsContent
+            value="image"
+            className="space-y-4 animate-in fade-in-50"
+          >
             <div className="text-sm text-amber-500 dark:text-amber-400 bg-amber-500/10 border border-amber-500/20 rounded-lg px-3 py-2">
-              Photo search requires an API key. Click the settings gear to add your
-              Unsplash or Pexels key.
+              Photo search requires an API key. Click the settings gear to add
+              your Unsplash or Pexels key.
             </div>
 
             <div className="flex gap-2 w-full">
@@ -654,7 +671,9 @@ export default function CoverMaker() {
 
             {bgImage && (
               <div className="flex items-center justify-between px-3 py-2 bg-muted/50 rounded-lg text-sm">
-                <span className="text-muted-foreground">Custom photo applied</span>
+                <span className="text-muted-foreground">
+                  Custom photo applied
+                </span>
                 <Button
                   variant="ghost"
                   size="sm"
