@@ -137,6 +137,7 @@ export default function CoverMaker() {
   const [photos, setPhotos] = useState<any[]>([]);
   const [isSearching, setIsSearching] = useState(false);
   const [isDownloading, setIsDownloading] = useState(false);
+  const [pixelScale, setPixelScale] = useState(1);
 
   // API Key State
   const [unsplashKey, setUnsplashKey] = useState("");
@@ -195,7 +196,7 @@ export default function CoverMaker() {
     setIsDownloading(true);
     try {
       const dataUrl = await toPng(coverRef.current, {
-        pixelRatio: 1,
+        pixelRatio: pixelScale,
         cacheBust: true,
       });
       const link = document.createElement("a");
@@ -774,19 +775,42 @@ export default function CoverMaker() {
           </div>
         </div>
 
-        <Button
-          size="lg"
-          className="w-full max-w-[220px] gap-2 rounded-xl shadow-lg hover:shadow-xl transition-all"
-          onClick={handleDownload}
-          disabled={isDownloading}
-        >
-          {isDownloading ? (
-            <div className="w-5 h-5 border-2 border-primary-foreground/30 border-t-primary-foreground rounded-full animate-spin" />
-          ) : (
-            <Download className="w-5 h-5" />
-          )}
-          {isDownloading ? "Generating..." : "Download Cover"}
-        </Button>
+        <div className="space-y-3 w-full flex flex-col items-center">
+          {/* Scale selector */}
+          <div className="flex items-center gap-1 bg-muted rounded-lg p-1">
+            <span className="text-xs text-muted-foreground px-2">Scale:</span>
+            {[1, 2, 3].map((scale) => (
+              <button
+                key={scale}
+                onClick={() => setPixelScale(scale)}
+                className={`px-3 py-1 rounded-md text-xs font-semibold transition-all ${
+                  pixelScale === scale
+                    ? "bg-background text-foreground shadow-sm"
+                    : "text-muted-foreground hover:text-foreground"
+                }`}
+              >
+                {scale}×
+              </button>
+            ))}
+            <span className="text-xs text-muted-foreground pl-1 pr-2">
+              = {110 * pixelScale}×{135 * pixelScale}px
+            </span>
+          </div>
+
+          <Button
+            size="lg"
+            className="w-full max-w-[220px] gap-2 rounded-xl shadow-lg hover:shadow-xl transition-all"
+            onClick={handleDownload}
+            disabled={isDownloading}
+          >
+            {isDownloading ? (
+              <div className="w-5 h-5 border-2 border-primary-foreground/30 border-t-primary-foreground rounded-full animate-spin" />
+            ) : (
+              <Download className="w-5 h-5" />
+            )}
+            {isDownloading ? "Generating..." : "Download Cover"}
+          </Button>
+        </div>
       </div>
 
       {/* API Key Settings Dialog */}
