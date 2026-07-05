@@ -109,6 +109,15 @@ function randomColor(): string {
   return color;
 }
 
+function isIOS(): boolean {
+  if (typeof navigator === "undefined") return false;
+  if ((navigator as any).userAgentData) {
+    return (navigator as any).userAgentData.platform === "iOS";
+  }
+  const ua = navigator.userAgent || "";
+  return /iPhone|iPad|iPod/.test(ua) || (navigator.maxTouchPoints > 2 && /Macintosh/.test(ua));
+}
+
 export default function CoverMaker() {
   const [bgColor, setBgColor] = useState("#1f2937");
   const [isTransparentBg, setIsTransparentBg] = useState(false);
@@ -138,6 +147,7 @@ export default function CoverMaker() {
   const [isSearching, setIsSearching] = useState(false);
   const [isDownloading, setIsDownloading] = useState(false);
   const [pixelScale, setPixelScale] = useState(1);
+  const [iosImageUrl, setIosImageUrl] = useState<string | null>(null);
 
   // API Key State
   const [unsplashKey, setUnsplashKey] = useState("");
@@ -199,10 +209,35 @@ export default function CoverMaker() {
         pixelRatio: pixelScale,
         cacheBust: true,
       });
-      const link = document.createElement("a");
-      link.download = `upcover-${Date.now()}.png`;
-      link.href = dataUrl;
-      link.click();
+
+      const filename = `upcover-${Date.now()}.png`;
+
+      if (isIOS()) {
+        // Convert dataUrl → Blob → File for Web Share API
+        const fetchRes = await fetch(dataUrl);
+        const blob = await fetchRes.blob();
+        const file = new File([blob], filename, { type: "image/png" });
+
+        if (navigator.canShare?.({ files: [file] })) {
+          try {
+            await navigator.share({ files: [file], title: "UpCover" });
+            return; // native iOS sheet handled it
+          } catch (err: any) {
+            if (err.name === "AbortError") return; // user cancelled — fine
+            // share failed, fall through to dialog
+          }
+        }
+
+        // Fallback: show image in dialog so user can long-press → save
+        setIosImageUrl(dataUrl);
+      } else {
+        const link = document.createElement("a");
+        link.download = filename;
+        link.href = dataUrl;
+        document.body.appendChild(link);
+        link.click();
+        link.remove();
+      }
     } catch (err) {
       console.error("Failed to generate cover image", err);
       alert(
@@ -875,6 +910,39 @@ export default function CoverMaker() {
               }}
             >
               Save Keys
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* iOS Save Fallback Dialog */}
+      <Dialog open={!!iosImageUrl} onOpenChange={() => setIosImageUrl(null)}>
+        <DialogContent className="max-w-xs">
+          <DialogHeader>
+            <DialogTitle>Save Your Cover</DialogTitle>
+            <DialogDescription>
+              Long-press (tap and hold) the image below, then tap{" "}
+              <strong>"Add to Photos"</strong> or{" "}
+              <strong>"Save to Files"</strong>.
+            </DialogDescription>
+          </DialogHeader>
+          {iosImageUrl && (
+            <div className="flex justify-center py-2">
+              <img
+                src={iosImageUrl}
+                alt="Your cover — long-press to save"
+                className="rounded-md shadow-lg border"
+                style={{
+                  width: 110 * pixelScale,
+                  height: 135 * pixelScale,
+                  maxWidth: "100%",
+                }}
+              />
+            </div>
+          )}
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setIosImageUrl(null)}>
+              Done
             </Button>
           </DialogFooter>
         </DialogContent>
