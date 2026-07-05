@@ -115,7 +115,10 @@ function isIOS(): boolean {
     return (navigator as any).userAgentData.platform === "iOS";
   }
   const ua = navigator.userAgent || "";
-  return /iPhone|iPad|iPod/.test(ua) || (navigator.maxTouchPoints > 2 && /Macintosh/.test(ua));
+  return (
+    /iPhone|iPad|iPod/.test(ua) ||
+    (navigator.maxTouchPoints > 2 && /Macintosh/.test(ua))
+  );
 }
 
 export default function CoverMaker() {
@@ -404,7 +407,7 @@ export default function CoverMaker() {
                     {PRESET_COLORS.map((color) => (
                       <button
                         key={color}
-                        className={`w-8 h-8 rounded-full border-2 transition-all hover:scale-110 ${bgColor === color ? "border-primary scale-110 shadow-md" : "border-transparent shadow-sm"}`}
+                        className={`w-8 h-8 rounded-full border-2 transition-all hover:scale-110 ${bgColor === color ? "border-primary scale-110 shadow-md" : "border-muted shadow-sm"}`}
                         style={{ backgroundColor: color }}
                         onClick={() => {
                           setBgColor(color);
@@ -555,7 +558,7 @@ export default function CoverMaker() {
                   {PRESET_COLORS.map((color) => (
                     <button
                       key={color}
-                      className={`w-8 h-8 rounded-full border-2 transition-all hover:scale-110 ${iconColor === color ? "border-primary scale-110 shadow-md" : "border-transparent shadow-sm"}`}
+                      className={`w-8 h-8 rounded-full border-2 transition-all hover:scale-110 ${iconColor === color ? "border-primary scale-110 shadow-md" : "border-muted shadow-sm"}`}
                       style={{ backgroundColor: color }}
                       onClick={() => setIconColor(color)}
                       title={color}
