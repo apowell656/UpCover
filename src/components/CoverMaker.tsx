@@ -403,7 +403,7 @@ export default function CoverMaker() {
               {/* Solid color picker */}
               {!useGradient && !isTransparentBg && (
                 <div className="space-y-2">
-                  <div className="flex flex-wrap gap-2 justify-between">
+                  <div className="flex flex-wrap gap-2">
                     {PRESET_COLORS.map((color) => (
                       <button
                         key={color}
@@ -554,7 +554,7 @@ export default function CoverMaker() {
             <div className="space-y-6 pt-2">
               <div className="space-y-3">
                 <Label>Icon Color (Overrides default brand colors)</Label>
-                <div className="flex flex-wrap gap-2 justify-between">
+                <div className="flex flex-wrap gap-2">
                   {PRESET_COLORS.map((color) => (
                     <button
                       key={color}
